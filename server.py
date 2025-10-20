@@ -52,12 +52,20 @@ def code_review_prompt(language: str = "python") -> str:
 # Run server with streamable_http transport
 if __name__ == "__main__":
     import os
-    # Railway가 제공하는 PORT 환경변수를 설정 (기본값: 8000)
-    # FastMCP의 streamable-http transport가 이 환경변수를 읽습니다
-    if "PORT" not in os.environ:
-        os.environ["PORT"] = "8000"
+    import sys
     
-    # HOST 환경변수도 설정 (외부에서 접근 가능하도록)
-    os.environ["HOST"] = "0.0.0.0"
+    # Railway가 제공하는 PORT 환경변수 사용 (기본값: 8000)
+    port = int(os.environ.get("PORT", 8000))
+    host = "0.0.0.0"  # 모든 네트워크 인터페이스에서 접근 가능
     
-    mcp.run(transport="streamable-http")
+    # 디버깅용 로그
+    print(f"Starting MCP server on {host}:{port}", file=sys.stderr)
+    
+    # FastMCP의 ASGI 앱 가져오기
+    app = mcp._get_asgi_app()
+    
+    try:
+        mcp.run(transport="streamable-http")
+    except Exception as e:
+        print(f"Error starting server: {e}", file=sys.stderr)
+        raise
