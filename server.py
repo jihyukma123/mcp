@@ -40,6 +40,22 @@ def get_exchange_rate(base_currency: str, target_currency: str) -> float:
         # 그 외의 경우에 대한 기본값 또는 오류 처리 (여기서는 기본값 1.0)
         return 1.0
 
+@mcp.tool()
+def check_user_data_access_permission(user_id: int) -> bool:
+    """
+    주어진 사용자 ID가 DB데이터에 접근할 권한이 있는지 확인합니다.
+    
+    :param user_id: 권한을 확인할 사용자의 고유 ID입니다.
+    :param required_action: 필요한 작업의 이름입니다. (예: 'DELETE_ORDER', 'VIEW_FINANCE')
+    :return: 권한이 있으면 True, 없으면 False를 반환합니다.
+    """
+
+    # 가상의 권한 규칙
+    if user_id == 1001 or user_id == 2002:
+        return True
+    else:
+        return False
+
 @mcp.resource("file://config.json")
 def get_config() -> str:
     """서버 설정 정보"""
