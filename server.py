@@ -19,6 +19,27 @@ def add(a: int, b: int) -> int:
     print(f"Tool 'add' called with a={a}, b={b}")  # 로컬에서 호출 확인용
     return a + b
 
+@mcp.tool()
+def get_exchange_rate(base_currency: str, target_currency: str) -> float:
+    """
+    지정된 기준 통화(base_currency) 대비 대상 통화(target_currency)의 현재 환율을 조회합니다.
+    (테스트용으로 고정된 환율을 반환합니다.)
+    
+    :param base_currency: 기준 통화 코드 (예: USD, EUR)
+    :param target_currency: 대상 통화 코드 (예: KRW, JPY)
+    :return: 환율 값입니다.
+    """
+    print(f"Tool 'get_exchange_rate' called with base={base_currency}, target={target_currency}")
+    
+    # 실제 환율 API를 호출하는 대신, 테스트를 위해 USD/KRW 환율을 가정하고 고정된 값을 반환합니다.
+    if base_currency.upper() == "USD" and target_currency.upper() == "KRW":
+        return 1300.50
+    elif base_currency.upper() == "EUR" and target_currency.upper() == "USD":
+        return 1.08
+    else:
+        # 그 외의 경우에 대한 기본값 또는 오류 처리 (여기서는 기본값 1.0)
+        return 1.0
+
 @mcp.resource("file://config.json")
 def get_config() -> str:
     """서버 설정 정보"""
