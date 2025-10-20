@@ -2,7 +2,7 @@ from mcp.server.fastmcp import FastMCP
 
 # 1. FastMCP 서버 인스턴스 생성
 # 이 인스턴스가 Tools를 관리하고 서버 역할을 수행한다.
-mcp = FastMCP("Minimal HTTP Tool Server")
+mcp = FastMCP("Minimal HTTP Tool Server", host="0.0.0.0", port=8000)
 
 
 # 2. Tool 함수 정의
@@ -50,4 +50,4 @@ def code_review_prompt(language: str = "python") -> str:
 
 # Run server with streamable_http transport
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host="0.0.0.0")
