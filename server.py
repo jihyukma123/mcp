@@ -46,7 +46,6 @@ def check_user_data_access_permission(user_id: int) -> bool:
     주어진 사용자 ID가 DB데이터에 접근할 권한이 있는지 확인합니다.
     
     :param user_id: 권한을 확인할 사용자의 고유 ID입니다.
-    :param required_action: 필요한 작업의 이름입니다. (예: 'DELETE_ORDER', 'VIEW_FINANCE')
     :return: 권한이 있으면 True, 없으면 False를 반환합니다.
     """
 
