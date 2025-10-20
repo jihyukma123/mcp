@@ -51,4 +51,8 @@ def code_review_prompt(language: str = "python") -> str:
 
 # Run server with streamable_http transport
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    import os
+    # Railway가 제공하는 PORT 환경변수 사용 (기본값: 8000)
+    port = int(os.environ.get("PORT", 8000))
+    # host="0.0.0.0"으로 설정하여 외부에서 접근 가능하게 함
+    mcp.run(transport="streamable-http", port=port, host="0.0.0.0")
