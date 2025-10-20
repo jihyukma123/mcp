@@ -1,5 +1,4 @@
 from mcp.server.fastmcp import FastMCP
-import asyncio
 
 # 1. FastMCP 서버 인스턴스 생성
 # 이 인스턴스가 Tools를 관리하고 서버 역할을 수행한다.
@@ -51,21 +50,4 @@ def code_review_prompt(language: str = "python") -> str:
 
 # Run server with streamable_http transport
 if __name__ == "__main__":
-    import os
-    import sys
-    
-    # Railway가 제공하는 PORT 환경변수 사용 (기본값: 8000)
-    port = int(os.environ.get("PORT", 8000))
-    host = "0.0.0.0"  # 모든 네트워크 인터페이스에서 접근 가능
-    
-    # 디버깅용 로그
-    print(f"Starting MCP server on {host}:{port}", file=sys.stderr)
-    
-    # FastMCP의 ASGI 앱 가져오기
-    app = mcp._get_asgi_app()
-    
-    try:
-        mcp.run(transport="streamable-http")
-    except Exception as e:
-        print(f"Error starting server: {e}", file=sys.stderr)
-        raise
+    mcp.run(transport="streamable-http")
