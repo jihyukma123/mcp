@@ -5,6 +5,15 @@ from functools import lru_cache
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from typing import Dict, Any, List
 import mcp.types as types
+import logging
+
+# 전역 로거 설정
+logging.basicConfig(
+    level=logging.INFO,  # 또는 DEBUG로 세부 로그까지
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 
 # UI를 보여주기 위한 MIME 타입
 # skybridge는 Apps SDK가 자체적으로 정한 이름인 것 같음
@@ -199,42 +208,56 @@ async def _list_resources() -> List[types.Resource]:
         )
     ]
 
+# 이해가 안되는 부분 몇 가지
+# types.ResourceTemplate/Resource/Tool이 뭐지?
+# ResourceTemplate은 MCP에서 제공하는 타입인데 원래 Resource에 URI를 명시를 했었나?? 그랬떤 것 같기는 한데.
+# 그냥 해당 요소가 가져야할 값들을 미리 정의해둔 Type이라고 생각하면 될거같음. Custom Model 같은 형식으로.
+# Tool은 이런 요소를 가지고 만들어져야 해. 같은거지
+# 원래 @mcp.tool/@mcp.resource로 정의하면 알아서 되는데, 별도로 목록을 제공하려고 하다보니 이렇게 구현한듯?
+# 그냥 일반 dict로 해서 타입없이 구현해도 동작은 달라지지 않을 것으로 생각됨.
+@mcp._mcp_server.list_resource_templates()
+async def _list_resource_templates() -> List[types.ResourceTemplate]:
+    return [
+        types.ResourceTemplate(
+            name=SOLAR_WIDGET.title, 
+            title=SOLAR_WIDGET.title,
+            uriTemplate=SOLAR_WIDGET.template_uri,
+            description=_resource_description(SOLAR_WIDGET),
+            mimeType=MIME_TYPE,
+            _meta=_tool_meta(SOLAR_WIDGET)
+        )
+    ]
+
+# 일반 MCP Client와 다르게, Apps SDK는 list_resources에 등록되어 있는(uri가 있는 경우에만 그런건지는 모르겠지만) resource에 대해 실제로 read가 되지 않으면 `Unknown resource: ui://widget/solar-system.html`에러가 발생함.
+# _read 할 수 있는 방법을 제공하는 함수.
+# 여기까지만 구현하고 _call_tool_request 구현하지 않고 테스트 한 번 해보자. 되나?
+async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerResult:
+    logger.info("handle_read_resource를 활용해서 리소스 읽는 로직 실행됨")
+    resource_uri = str(req.params.uri)
+
+    # 유효한 resource_uri인지 확인
+    if resource_uri != SOLAR_WIDGET.template_uri:
+        return types.ServerResult(
+            types.ReadResourceResult(
+                contents=[],
+                _meta={"error": f"요청한 리소스 없어.... {req.params.uri}"}
+            )
+        )
+    
+    contents = [
+        types.TextResourceContents(
+            uri=SOLAR_WIDGET.template_uri,
+            mimeType=MIME_TYPE,
+            text=SOLAR_WIDGET.html,
+            _meta=_tool_meta(SOLAR_WIDGET)
+        )
+    ]
+
+    return types.ServerResult(types.ReadResourceResult(contents=contents))
 
 # 2. Tool 함수 정의
 # @mcp.tool 데코레이터 사용하여 일반 파이썬 함수를 LLM이 사용할 수 있는 Tool로 등록함.
 # 인자의 타입 힌트와 Docstring(함수 초입에 """으로 감싸진 텍스트)이 Tool의 스키마로 활용됨
-@mcp.tool()
-def add(a: int, b: int) -> int:
-    """
-    두 숫자를 더합니다.
-    :param a: 첫 번째 숫자입니다.
-    :param b: 두 번째 숫자입니다.
-    :return: 두 숫자의 합입니다.
-    """
-    print(f"Tool 'add' called with a={a}, b={b}")  # 로컬에서 호출 확인용
-    return a + b
-
-@mcp.tool()
-def get_exchange_rate(base_currency: str, target_currency: str) -> float:
-    """
-    지정된 기준 통화(base_currency) 대비 대상 통화(target_currency)의 현재 환율을 조회합니다.
-    (테스트용으로 고정된 환율을 반환합니다.)
-    
-    :param base_currency: 기준 통화 코드 (예: USD, EUR)
-    :param target_currency: 대상 통화 코드 (예: KRW, JPY)
-    :return: 환율 값입니다.
-    """
-    print(f"Tool 'get_exchange_rate' called with base={base_currency}, target={target_currency}")
-    
-    # 실제 환율 API를 호출하는 대신, 테스트를 위해 USD/KRW 환율을 가정하고 고정된 값을 반환합니다.
-    if base_currency.upper() == "USD" and target_currency.upper() == "KRW":
-        return 1300.50
-    elif base_currency.upper() == "EUR" and target_currency.upper() == "USD":
-        return 1.08
-    else:
-        # 그 외의 경우에 대한 기본값 또는 오류 처리 (여기서는 기본값 1.0)
-        return 1.0
-
 @mcp.tool()
 def check_user_data_access_permission(user_id: int) -> bool:
     """
@@ -278,6 +301,9 @@ def code_review_prompt(language: str = "python") -> str:
 - 보안 이슈
 - 모범 사례 준수
 """
+
+# mcp server에 ReadResourceRequest를 처리하는 handler를 등록
+mcp._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
 
 # Run server with streamable_http transport
 if __name__ == "__main__":
