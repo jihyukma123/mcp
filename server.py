@@ -92,7 +92,7 @@ SOLAR_WIDGET = SolarWidget(
     invoking="Charting the solar system",
     invoked="Solar system ready",
     html=_load_widget_html("solar-system"),
-    response_text="Solar system ready",
+    response_text="Solar system ready_response text",
 )
 
 # 태양계에 대한 정보 요청 시 입력값
@@ -231,6 +231,9 @@ async def _list_resource_templates() -> List[types.ResourceTemplate]:
 # 일반 MCP Client와 다르게, Apps SDK는 list_resources에 등록되어 있는(uri가 있는 경우에만 그런건지는 모르겠지만) resource에 대해 실제로 read가 되지 않으면 `Unknown resource: ui://widget/solar-system.html`에러가 발생함.
 # _read 할 수 있는 방법을 제공하는 함수.
 # 여기까지만 구현하고 _call_tool_request 구현하지 않고 테스트 한 번 해보자. 되나?
+# 테스트해본 결과 됨. 도구 다시 불러오기 새로고침 동작하고, resource는 등록이 됨. 근데 resource가 호출되는 tool call을 하면, tool call이 실패함
+# {"text":"Unknown tool: focus-solar-planet","is_error":true}
+# 
 async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerResult:
     logger.info("handle_read_resource를 활용해서 리소스 읽는 로직 실행됨")
     resource_uri = str(req.params.uri)
@@ -254,6 +257,84 @@ async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerR
     ]
 
     return types.ServerResult(types.ReadResourceResult(contents=contents))
+
+
+# 그러면 실제로 도구를 호출했을 때 이를 처리해서 반환하는 로직도 구현되어야겠지?
+async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
+    logger.info(f"_call_tool_request for request: {req.params.name}")
+
+    arguments = req.params.arguments or {}
+
+    # focus-solar-system 도구 호출을 위해서 정해진 형식의 input이 전달되었는지 검증
+    try:
+        payload = SolarInput.model_validate(arguments)
+    except ValidationError as e:
+        return types.ServerResult(
+            types.CallToolResult(
+                content = [
+                    types.TextContent(
+                        type="text",
+                        text=f"Invalid arguments: {e.errors()}"
+                    )
+                ],
+                isError=True,
+            )
+        )
+
+    planet = _normalize_planet(payload.planet_name)
+
+    # 유효한 입력값인지 검증하는 단계
+    if planet is None:
+        return types.ServerResult(
+            types.CallToolResult(
+                content=[
+                    types.TextContent(
+                        type="text",
+                        text=(
+                            f"{payload.planet_name}은/는 없는 행성임. 행성 이름 잘 넣은거 맞음? 다음 중 하나만 됨. {", ".join(PLANETS)}"
+                        )
+                    )
+                ],
+                isError=True
+            )
+        )
+
+    widget_resource = _embedded_widget_resource(SOLAR_WIDGET)
+
+    # 이 메타정보 정의하는 기준을 알아봐야할듯?? 아마 이게 Apps SDK를 사용하기 위해서 필수적인 정보인거같은데.
+    meta: Dict[str, Any] = {
+        "openai.com/widget": widget_resource.model_dump(mode="josn"),
+        "openai/outputTemplate": SOLAR_WIDGET.template_uri,
+        "openai/toolInvocation/invoking": SOLAR_WIDGET.invoking,
+        "openai/toolInvocation/invoked": SOLAR_WIDGET.invoked,
+        "openai/widgetAccessible": True,
+        "openai/resultCanProduceWidget": True,
+    }
+
+    description = PLANET_DESCRIPTIONS.get(planet, "")
+
+    structured = {
+        "planet_name": planet,
+        "planet_description": description,
+        "autoOrbit": payload.auto_orbit,
+    }
+
+    message = f"{planet} 중심으로 보이게 했음~~~~"
+
+    return types.ServerResult(
+        types.CallToolResult(
+            content=[
+                types.TextContent(
+                    type="text",
+                    text=message
+                )
+            ],
+            # structuredContent/meta 정확히 이해를 잘 못했음 뭐하는건지..
+            structuredContent=structured,
+            _meta=meta
+        )
+    )
+
 
 # 2. Tool 함수 정의
 # @mcp.tool 데코레이터 사용하여 일반 파이썬 함수를 LLM이 사용할 수 있는 Tool로 등록함.
@@ -301,6 +382,9 @@ def code_review_prompt(language: str = "python") -> str:
 - 보안 이슈
 - 모범 사례 준수
 """
+
+# mcp server에 CallToolReqeust 처리하는 handler 등록
+mcp._mcp_server.request_handlers[types.CallToolRequest] = _call_tool_request
 
 # mcp server에 ReadResourceRequest를 처리하는 handler를 등록
 mcp._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
