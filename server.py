@@ -58,7 +58,7 @@ class SolarWidget:
     response_text: str
 
 # 실제로 widget을 Load하기 위해서 사용되는 html이 저장되어 있는 폴더 명시(build해서 assets에 들어가있어야 한다는 점.)
-ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 
 @lru_cache(maxsize=None)
 def _load_widget_html(component_name: str) -> str:
@@ -172,6 +172,7 @@ def _normalize_planet(name: str) -> str | None:
 
 # list_tools(도구의 등록)이랑, 실제 실행하는 로직(handler)을 분리해서 구현했음 예제는.
 # 이렇게 구현했을 때, @mcp.tool로 등록된 도구가 봔횐되지 않고 여기에 명시된 도구만 반환되는지 테스트 필요 
+# 내가 생각한대로 동작(list_tools함수를 명시할 경우 return된 배열 내에 존재하는 도구만 도구 목록으로 반환되어서 ChatGPT앱에 표시됨)
 @mcp._mcp_server.list_tools()
 async def _list_tools() -> List[types.Tool]:
     return [
@@ -184,6 +185,18 @@ async def _list_tools() -> List[types.Tool]:
         )
     ]
 
+@mcp._mcp_server.list_resources()
+async def _list_resources() -> List[types.Resource]:
+    return [
+        types.Resource(
+            name=WIDGET.title, 
+            title=WIDGET.title, 
+            uri=WIDGET.template_uri,
+            description=_resource_description(WIDGET),
+            mimeType=MIME_TYPE,
+            _meta=_tool_meta(WIDGET),
+        )
+    ]
 
 # 2. Tool 함수 정의
 # @mcp.tool 데코레이터 사용하여 일반 파이썬 함수를 LLM이 사용할 수 있는 Tool로 등록함.
