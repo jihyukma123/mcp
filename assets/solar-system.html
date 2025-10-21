@@ -3,11 +3,143 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>Solar System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #ffffff;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      background: linear-gradient(45deg, #ffd89b, #19547b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 20px rgba(255, 216, 155, 0.3);
+    }
+
+    #output {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      color: #ffd89b;
+    }
+
+    pre {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #a8dadc;
+    }
+
+    .planet-info {
+      margin-top: 1rem;
+    }
+
+    .planet-name {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #ffd89b;
+      margin-bottom: 0.5rem;
+    }
+
+    .planet-description {
+      color: #e0e0e0;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .orbit-status {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      background: rgba(72, 187, 120, 0.2);
+      border: 1px solid rgba(72, 187, 120, 0.4);
+      color: #9ae6b4;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    #output {
+      animation: fadeIn 0.5s ease-out;
+    }
+  </style>
 </head>
 <body>
-  <h1>
-    hello world
-  </h1>
+  <h1>🪐 Solar System Widget</h1>
+  <div id="output"></div>
+
+  <script>
+    // window.openai.toolOutput이 주입될 때까지 대기
+    function checkToolOutput() {
+      if (window.openai && window.openai.toolOutput) {
+        console.log('=== Tool Output 주입됨 ===');
+        console.log(window.openai.toolOutput);
+        console.log('Planet Name:', window.openai.toolOutput.planet_name);
+        console.log('Planet Description:', window.openai.toolOutput.planet_description);
+        console.log('Auto Orbit:', window.openai.toolOutput.autoOrbit);
+        
+        const data = window.openai.toolOutput;
+        
+        // 화면에도 표시
+        document.getElementById('output').innerHTML = `
+          <div class="planet-info">
+            <div class="planet-name">${data.planet_name || 'Unknown'}</div>
+            <div class="planet-description">${data.planet_description || 'No description available'}</div>
+            <div class="orbit-status">
+              ${data.autoOrbit ? '🔄 Auto Orbit Enabled' : '⏸ Auto Orbit Disabled'}
+            </div>
+          </div>
+          <h2>📊 Raw Data:</h2>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } else {
+        console.log('window.openai.toolOutput 아직 주입 안됨, 재시도 중...');
+        setTimeout(checkToolOutput, 100);
+      }
+    }
+
+    // 페이지 로드 시 확인 시작
+    checkToolOutput();
+  </script>
 </body>
 </html>

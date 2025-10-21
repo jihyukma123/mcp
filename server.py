@@ -88,7 +88,7 @@ def _load_widget_html(component_name: str) -> str:
 SOLAR_WIDGET = SolarWidget(
     identifier="solar-system",
     title="Explore the Solar System",
-    template_uri="ui://widget/solar-system.html",
+    template_uri="ui://widget/solar-system-v1.html",
     invoking="Charting the solar system",
     invoked="Solar system ready",
     html=_load_widget_html("solar-system"),
@@ -302,7 +302,7 @@ async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
 
     # 이 메타정보 정의하는 기준을 알아봐야할듯?? 아마 이게 Apps SDK를 사용하기 위해서 필수적인 정보인거같은데.
     meta: Dict[str, Any] = {
-        "openai.com/widget": widget_resource.model_dump(mode="josn"),
+        "openai.com/widget": widget_resource.model_dump(mode="json"),
         "openai/outputTemplate": SOLAR_WIDGET.template_uri,
         "openai/toolInvocation/invoking": SOLAR_WIDGET.invoking,
         "openai/toolInvocation/invoked": SOLAR_WIDGET.invoked,
@@ -329,7 +329,7 @@ async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
                 )
             ],
             # structuredContent/meta 정확히 이해를 잘 못했음 뭐하는건지..
-            structuredContent=structured,
+            structuredContent=structured, # 얘가 실제로 iframe에 주입되는 데이터임.(as window.openai.toolOutput)
             _meta=meta
         )
     )
@@ -407,6 +407,11 @@ def code_review_prompt(language: str = "python") -> str:
 #  ->  meta에 명시된 template을 참고해서 id값으로 해서 resource를 식별 
 # -> resource는 uri와 함께 text라는 필드에 실제로 렌더링할 html text를 가지고 있음(assets에 명시를 하건, Inline으로 명시를 하건) (examples에 solar-python 코드랑 공식 문서에 node기반 Kanban기반 소스랑 좀 다른 부분이 있어서 헷갈리긴 하는데, 핵심적인 부분은 text부분에 html 코드가 명시되어 있고, 이거를 resource 요청 시 반환해주면 된다 이거인듯.)
 # -> 이 resource를 요청해서 받은 html에, tool call을 활용해서 받은 payload에 있는 structuredContent의 내용을 hydrate에서 iframe에 렌더링.
+
+# 추가정보
+# 내가 추측한 실행 flow는, 도구 호출 시 uri를 가지고 resource를 식별해서 호출해서 받은 html을 렌더링 이거였는데, 커스텀 서버로 구현해서 돌려본 결과 
+# 처음에 도구 등록 시 or 새로고침 시에만 read_resource 함수가 실행되고, 이후에는 도구 호출 시 read_resource는 실행이 안됨.
+# 그러니까 처음에 등록된 리소스 정보를 저장하고 있다가 이거를 가져다가 사용하는 형태로 동작하는 것 같음(추측이라서 세부 검증은 더 필요함)
 # -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
 # -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
 # -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
@@ -417,8 +422,10 @@ def code_review_prompt(language: str = "python") -> str:
 # 이 structuredContent는 tool 호출의 결과값에 담겨있는 payload임. 이걸 사용해서 ChatGPT는 iframe에 동적인 값을 주입해서 미리 정의되어 있는 html을 렌더링 하는 걸로 이해함.
 # 참고로 iframe을 hydrate를 한다는 것은, 껍데기에 해당되는 iframe에 띄워지는 html에 구조화된 데이터를 주입해서 interactive한 UI로 변환하는 것을 의미함.
 
-
-
+# Structure the data your tool returns
+# tool response에 포함시켜서 ChatGPT와 UI 컴포넌트가 데이터를 사용하는 방식을 결정할 수 있는 필드는 세개임(sibling)
+# `structuredContent`, `content`, `_meta`
+# structuredContent -> 목적은 component hydration. ChatGPT는 이 객체를 iframe에 `window.openai.toolOutput`에 주입함. 
 
 
 # mcp server에 CallToolReqeust 처리하는 handler 등록
