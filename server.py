@@ -76,7 +76,7 @@ def _load_widget_html(component_name: str) -> str:
     )
 
 # Widget초기화
-WIDGET = SolarWidget(
+SOLAR_WIDGET = SolarWidget(
     identifier="solar-system",
     title="Explore the Solar System",
     template_uri="ui://widget/solar-system.html",
@@ -178,25 +178,27 @@ async def _list_tools() -> List[types.Tool]:
     return [
         types.Tool(
             name="focus-solar-planet",
-            title=WIDGET.title,
+            title=SOLAR_WIDGET.title,
             description="Render the solar system widget centered on the requested planet.",
             inputSchema=TOOL_INPUT_SCHEMA,
-            _meta=_tool_meta(WIDGET),
+            _meta=_tool_meta(SOLAR_WIDGET),
         )
     ]
 
+# resource등록이 필요
 @mcp._mcp_server.list_resources()
 async def _list_resources() -> List[types.Resource]:
     return [
         types.Resource(
-            name=WIDGET.title, 
-            title=WIDGET.title, 
-            uri=WIDGET.template_uri,
-            description=_resource_description(WIDGET),
+            name=SOLAR_WIDGET.title, 
+            title=SOLAR_WIDGET.title, 
+            uri=SOLAR_WIDGET.template_uri,
+            description=_resource_description(SOLAR_WIDGET),
             mimeType=MIME_TYPE,
-            _meta=_tool_meta(WIDGET),
+            _meta=_tool_meta(SOLAR_WIDGET),
         )
     ]
+
 
 # 2. Tool 함수 정의
 # @mcp.tool 데코레이터 사용하여 일반 파이썬 함수를 LLM이 사용할 수 있는 Tool로 등록함.
