@@ -102,11 +102,83 @@
     #output {
       animation: fadeIn 0.5s ease-out;
     }
+
+    /* Skeleton Loading Styles */
+    .skeleton {
+      background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.05) 25%,
+        rgba(255, 255, 255, 0.1) 50%,
+        rgba(255, 255, 255, 0.05) 75%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    .skeleton-title {
+      height: 2rem;
+      width: 60%;
+      margin-bottom: 1rem;
+    }
+
+    .skeleton-text {
+      height: 1rem;
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+
+    .skeleton-text.short {
+      width: 80%;
+    }
+
+    .skeleton-badge {
+      height: 1.5rem;
+      width: 150px;
+      margin-bottom: 1rem;
+    }
+
+    .skeleton-code {
+      height: 200px;
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    .loading-container {
+      opacity: 1;
+      transition: opacity 0.3s ease-out;
+    }
+
+    .loading-container.fade-out {
+      opacity: 0;
+    }
   </style>
 </head>
 <body>
   <h1>🪐 Solar System Widget</h1>
-  <div id="output"></div>
+  <div id="output">
+    <!-- Skeleton Loading UI -->
+    <div class="loading-container" id="skeleton">
+      <div class="planet-info">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text short"></div>
+        <div class="skeleton skeleton-badge"></div>
+      </div>
+      <h2>📊 Raw Data:</h2>
+      <div class="skeleton skeleton-code"></div>
+    </div>
+  </div>
 
   <script>
     // window.openai.toolOutput이 주입될 때까지 대기
@@ -119,19 +191,25 @@
         console.log('Auto Orbit:', window.openai.toolOutput.autoOrbit);
         
         const data = window.openai.toolOutput;
+        const skeleton = document.getElementById('skeleton');
         
-        // 화면에도 표시
-        document.getElementById('output').innerHTML = `
-          <div class="planet-info">
-            <div class="planet-name">${data.planet_name || 'Unknown'}</div>
-            <div class="planet-description">${data.planet_description || 'No description available'}</div>
-            <div class="orbit-status">
-              ${data.autoOrbit ? '🔄 Auto Orbit Enabled' : '⏸ Auto Orbit Disabled'}
+        // 스켈레톤에 fade-out 클래스 추가
+        skeleton.classList.add('fade-out');
+        
+        // fade-out 애니메이션이 끝난 후 실제 콘텐츠로 교체
+        setTimeout(() => {
+          document.getElementById('output').innerHTML = `
+            <div class="planet-info">
+              <div class="planet-name">${data.planet_name || 'Unknown'}</div>
+              <div class="planet-description">${data.planet_description || 'No description available'}</div>
+              <div class="orbit-status">
+                ${data.autoOrbit ? '🔄 Auto Orbit Enabled' : '⏸ Auto Orbit Disabled'}
+              </div>
             </div>
-          </div>
-          <h2>📊 Raw Data:</h2>
-          <pre>${JSON.stringify(data, null, 2)}</pre>
-        `;
+            <h2>📊 Raw Data:</h2>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          `;
+        }, 300); // transition 시간과 맞춤
       } else {
         console.log('window.openai.toolOutput 아직 주입 안됨, 재시도 중...');
         setTimeout(checkToolOutput, 100);

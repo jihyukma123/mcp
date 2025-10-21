@@ -88,7 +88,7 @@ def _load_widget_html(component_name: str) -> str:
 SOLAR_WIDGET = SolarWidget(
     identifier="solar-system",
     title="Explore the Solar System",
-    template_uri="ui://widget/solar-system-v1.html",
+    template_uri="ui://widget/solar-system-v2.html",
     invoking="Charting the solar system",
     invoked="Solar system ready",
     html=_load_widget_html("solar-system"),
@@ -426,6 +426,10 @@ def code_review_prompt(language: str = "python") -> str:
 # tool response에 포함시켜서 ChatGPT와 UI 컴포넌트가 데이터를 사용하는 방식을 결정할 수 있는 필드는 세개임(sibling)
 # `structuredContent`, `content`, `_meta`
 # structuredContent -> 목적은 component hydration. ChatGPT는 이 객체를 iframe에 `window.openai.toolOutput`에 주입함. 
+# content -> optional값으로,(markdown or plain text) 제공 시 llm에 그대로 입력됨(verbatim - 있는 그대로)
+# _meta - Component에만 전달되는 데이터(model에는 절대 전달되지 않음). model의 reasoning에 영향을 주지 않으면서 컴포넌트에 전달되어야 하는 데이터를 명시하는데 사용하면 됨.
+# iframe에 실제로 solar-system 도구 호출 시 값이 주입되는지 확인하려고 js 걸어본 결과...-> 오 실제로 잘 들어감. window.openai.toolOutput에 iframe에 주입됨.
+# 근데 이상한건 iframe에 주입 되어서 처리되는게 아니라...먼저 UI가 hydrate되기 전에 껍데기만 보여지다가, hydrate되면서 갑자기 UI가 표시됨.
 
 
 # mcp server에 CallToolReqeust 처리하는 handler 등록
