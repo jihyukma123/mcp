@@ -1,8 +1,188 @@
 from mcp.server.fastmcp import FastMCP
+from dataclasses import dataclass
+from pathlib import Path
+from functools import lru_cache
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from typing import Dict, Any, List
+import mcp.types as types
+
+# UI를 보여주기 위한 MIME 타입
+# skybridge는 Apps SDK가 자체적으로 정한 이름인 것 같음
+# RFC 6838 (MIME type registration 규격)에 따르면 text/html+something 처럼 +suffix 부분은 확장자처럼 자유롭게 정의 가능합니다.
+MIME_TYPE = 'text/html+skybridge'
+PLANETS = [
+    "Mercury",
+    "Venus",
+    "Earth",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Uranus",
+    "Neptune",
+]
+PLANET_ALIASES = {
+    "terra": "Earth",
+    "gaia": "Earth",
+    "soliii": "Earth",
+    "tellus": "Earth",
+    "ares": "Mars",
+    "jove": "Jupiter",
+    "zeus": "Jupiter",
+    "cronus": "Saturn",
+    "ouranos": "Uranus",
+    "poseidon": "Neptune",
+}
+PLANET_DESCRIPTIONS = {
+    "Mercury": "Mercury is the smallest planet in the Solar System and the closest to the Sun. It has a rocky, cratered surface and extreme temperature swings.",
+    "Venus": "Venus, similar in size to Earth, is cloaked in thick clouds of sulfuric acid with surface temperatures hot enough to melt lead.",
+    "Earth": "Earth is the only known planet to support life, with liquid water covering most of its surface and a protective atmosphere.",
+    "Mars": "Mars, the Red Planet, shows evidence of ancient rivers and volcanoes and is a prime target in the search for past life.",
+    "Jupiter": "Jupiter is the largest planet, a gas giant with a Great Red Spot—an enormous storm raging for centuries.",
+    "Saturn": "Saturn is famous for its stunning ring system composed of billions of ice and rock particles orbiting the planet.",
+    "Uranus": "Uranus is an ice giant rotating on its side, giving rise to extreme seasonal variations during its long orbit.",
+    "Neptune": "Neptune, the farthest known giant, is a deep-blue world with supersonic winds and a faint ring system.",
+}
+DEFAULT_PLANET = "Earth"
+
+
+# @dataclass 데코레이터는 클래스에 대해 자동으로 생성자(__init__), 비교(__eq__), 출력(__repr__) 같은 기본 메서드를 만들어 줍니다.
+# 이걸 사용안하면 별도로 __init_)__ __repr__ __eq__ 메서드를 직접 구현해야됨.
+@dataclass(frozen=True)
+class SolarWidget:
+    identifier: str
+    title: str
+    template_uri: str
+    invoking: str
+    invoked: str
+    html: str
+    response_text: str
+
+# 실제로 widget을 Load하기 위해서 사용되는 html이 저장되어 있는 폴더 명시(build해서 assets에 들어가있어야 한다는 점.)
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+
+@lru_cache(maxsize=None)
+def _load_widget_html(component_name: str) -> str:
+    html_path = ASSETS_DIR / f"{component_name}.html"
+    if html_path.exists():
+        return html_path.read_text(encoding="utf8")
+
+    fallback_candidates = sorted(ASSETS_DIR.glob(f"{component_name}-*.html"))
+    if fallback_candidates:
+        return fallback_candidates[-1].read_text(encoding="utf8")
+
+    raise FileNotFoundError(
+        f'Widget HTML for "{component_name}" not found in {ASSETS_DIR}. '
+        "Run `pnpm run build` to generate the assets before starting the server."
+    )
+
+# Widget초기화
+WIDGET = SolarWidget(
+    identifier="solar-system",
+    title="Explore the Solar System",
+    template_uri="ui://widget/solar-system.html",
+    invoking="Charting the solar system",
+    invoked="Solar system ready",
+    html=_load_widget_html("solar-system"),
+    response_text="Solar system ready",
+)
+
+# 태양계에 대한 정보 요청 시 입력값
+class SolarInput(BaseModel):
+    """Schema describing the solar system focus request."""
+
+    planet_name: str = Field(
+        DEFAULT_PLANET,
+        alias="planetName",
+        description="Planet to focus in the widget (case insensitive).",
+    )
+    auto_orbit: bool = Field(
+        True,
+        alias="autoOrbit",
+        description="Whether to keep the camera orbiting if the target planet is missing.",
+    )
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
 
 # 1. FastMCP 서버 인스턴스 생성
 # 이 인스턴스가 Tools를 관리하고 서버 역할을 수행한다.
-mcp = FastMCP("Minimal HTTP Tool Server", host="0.0.0.0", port=8000)
+mcp = FastMCP("GPT app test with Solar System", host="0.0.0.0", port=8000)
+
+TOOL_INPUT_SCHEMA: Dict[str, Any] = SolarInput.model_json_schema()
+
+def _resource_description(widget: SolarWidget) -> str:
+    return f"{widget.title} widget markup"
+
+def _tool_meta(widget: SolarWidget) -> Dict[str,any]:
+    return {
+        "openai/outputTemplate": widget.template_uri,
+        "openai/toolInvocation/invoking": widget.invoking,
+        "openai/toolInvocation/invoked": widget.invoked,
+        "openai/widgetAccessible": True,
+        "openai/resultCanProduceWidget": True,
+        "annotations": {
+            "destructiveHint": False,
+            "openWorldHint": False,
+            "readOnlyHint": True,
+        }
+    }
+
+# types -> mcp 라이브러리 요소임. EmbeddedResource
+# 음 내가 이해하고 있는게 맞는지 모르겠는데, call_tool 했을 때, textResource를 반환할 수도 있고, 아니면 EmbeddedResource를 반환할 수도 있다.
+# 만약에 도구 meta정보에 widget이 있다고 반환되면, 
+# 특정 tool을 호출했을 때, 그 tool의 결과값이 그 widget의 템플릿을 참조하고 있는 html 파일의 내용으로 채워져서 렌더링되는 것이다.
+# 그러면 도구호출 시 반환되는 값 자체가 그냥 {value: True} 이런 객체가 아니라 빌드가 완료된 iframe에 렌더링시켜줄 수 있는 HTML일 수도...?
+def _embedded_widget_resource(widget: SolarWidget) -> types.EmbeddedResource:
+    return types.EmbeddedResource(
+        type="resource",
+        resource=types.TextResourceContents(
+            uri=widget.template_uri,
+            mimeType=MIME_TYPE,
+            text=widget.html,
+            title=widget.title,
+        )
+    )
+
+# Ear th 이런식으로 입력했을 때 잘 처리해보려고 넣은 함수인듯?
+def _normalize_planet(name: str) -> str | None:
+    if not name:
+        return DEFAULT_PLANET
+
+    key = name.strip().lower()
+    if not key:
+        return DEFAULT_PLANET
+
+    clean = ''.join(ch for ch in key if ch.isalnum())
+
+    for planet in PLANETS:
+        planet_key = ''.join(ch for ch in planet.lower() if ch.isalnum())
+        if clean == planet_key or key == planet.lower():
+            return planet
+
+    alias = PLANET_ALIASES.get(clean)
+    if alias:
+        return alias
+
+    for planet in PLANETS:
+        planet_key = ''.join(ch for ch in planet.lower() if ch.isalnum())
+        if planet_key.startswith(clean):
+            return planet
+
+    return None
+
+# list_tools(도구의 등록)이랑, 실제 실행하는 로직(handler)을 분리해서 구현했음 예제는.
+# 이렇게 구현했을 때, @mcp.tool로 등록된 도구가 봔횐되지 않고 여기에 명시된 도구만 반환되는지 테스트 필요 
+@mcp._mcp_server.list_tools()
+async def _list_tools() -> List[types.Tool]:
+    return [
+        types.Tool(
+            name="focus-solar-planet",
+            title=WIDGET.title,
+            description="Render the solar system widget centered on the requested planet.",
+            inputSchema=TOOL_INPUT_SCHEMA,
+            _meta=_tool_meta(WIDGET),
+        )
+    ]
 
 
 # 2. Tool 함수 정의
