@@ -233,9 +233,8 @@ async def _list_resource_templates() -> List[types.ResourceTemplate]:
 # 여기까지만 구현하고 _call_tool_request 구현하지 않고 테스트 한 번 해보자. 되나?
 # 테스트해본 결과 됨. 도구 다시 불러오기 새로고침 동작하고, resource는 등록이 됨. 근데 resource가 호출되는 tool call을 하면, tool call이 실패함
 # {"text":"Unknown tool: focus-solar-planet","is_error":true}
-# 
 async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerResult:
-    logger.info("handle_read_resource를 활용해서 리소스 읽는 로직 실행됨")
+    logger.info(f"handle_read_resource를 활용해서 리소스 읽는 로직 실행됨 {req.params.uri}")
     resource_uri = str(req.params.uri)
 
     # 유효한 resource_uri인지 확인
@@ -261,7 +260,7 @@ async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerR
 
 # 그러면 실제로 도구를 호출했을 때 이를 처리해서 반환하는 로직도 구현되어야겠지?
 async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
-    logger.info(f"_call_tool_request for request: {req.params.name}")
+    logger.info(f"_call_tool_request 실행에 따른 도구 호출 for request: {req.params.name}")
 
     arguments = req.params.arguments or {}
 
@@ -382,6 +381,45 @@ def code_review_prompt(language: str = "python") -> str:
 - 보안 이슈
 - 모범 사례 준수
 """
+
+# ---
+# 대략적으로 example 보면서 구현해봤으니 이제 문서 보면서 의미를 이해하는 시간을 가져보자.
+
+# Set up your server: Describe your tools -> Structure the data your tool returns -> Build your component
+# Describe your tools
+# MCP 서버의 각 도구는 `should reference an HTML UI template in its descriptor` -> 이 HTML이 ChatGPT에 의해서 iframe 안에서 렌더링 되는 구조임.
+# template을 등록하는 방법 -> MCP Resource로 등록하는 거임. resource를 등록할 때, mimeType을 `text/html+skybridge'라고 명시해서 등록하는거임(참고로 mimeType은 원래 MCP Resource 등록 시 명시할 수 있는 값)
+# resource 등록할 때 부여하는 resource_uri 값(ex. ui://widget/solar-system.html)은 UI 컴포넌트에 대한 식별자가 됨.
+
+# Link the tool to the template
+# template을 만들어서 resource를 등록했으면 어떤 도구가 해당 resource를 사용해서 그 UI컴포넌트를 렌더링할지 연결을 해야되겠지?
+# 리소스 등록(등록 시 mimeType을 등록하고 resource_uri에 해당 파일 연결) -> 어떤 도구가 해당 리소스를 사용해서 결과 출력에 사용할지 명시 
+# -> 이거 약간 잘못 이해한 부분이 있는 듯? resource 등록 시, uri 값은 내가 부여하는 식별자임(실제로 파일 경로가 아니라, 내가 부여하는 id 값이라고 생각하면 됨)
+# tool의 결과를 출력할 때 사용될 UI template은 Tool 등록 시 _meta['openai/outputTemplate'] 필드에 명시된 URI 값을 참조해서 사용됨.
+# 예를 들어서, Tool(_meta: {"openai/otuputTemplate": "ui://widget/solar-system.html"})
+
+# -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
+# -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
+# -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
+# 그러면 실제 렌더링되는 html까지 연결이 어떻게 되는건지?
+# tool 호출
+#  -> structuredContent(iframe에 주입되어야 하는 동적 데이터), meta(resource uri 같은 정적 데이터 관련 메타정보) 포함된 응답 반환
+#  ->  meta에 명시된 template을 참고해서 id값으로 해서 resource를 식별 
+# -> resource는 uri와 함께 text라는 필드에 실제로 렌더링할 html text를 가지고 있음(assets에 명시를 하건, Inline으로 명시를 하건) (examples에 solar-python 코드랑 공식 문서에 node기반 Kanban기반 소스랑 좀 다른 부분이 있어서 헷갈리긴 하는데, 핵심적인 부분은 text부분에 html 코드가 명시되어 있고, 이거를 resource 요청 시 반환해주면 된다 이거인듯.)
+# -> 이 resource를 요청해서 받은 html에, tool call을 활용해서 받은 payload에 있는 structuredContent의 내용을 hydrate에서 iframe에 렌더링.
+# -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
+# -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
+# -------!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!------------
+
+# 참고로 ChatGPT는 도구 호출 시 캐싱 거의 무조건 하는 것 같음(wft do they mean by 'caches templates aggressively..?) 그래서 무조건 업데이트 되어야 하는 UI가 존재하는 경우 애초에 별도의 resource 로 파서 연결된 template uri를 바꿔주는게 바람직하다고 함(versioning을 잘 해야된다고 함)
+
+# 여기까지 해서, template하고 template을 가져다쓰기 위해 연결점을 명시하는 metadata를 처리했으면, ChatGPT가 해당 리소스를 사용해서 iframe을 띄울 때 iframe을 hydrate하는데 사용하는 `structuredContent`를 명시하는게 필요함.
+# 이 structuredContent는 tool 호출의 결과값에 담겨있는 payload임. 이걸 사용해서 ChatGPT는 iframe에 동적인 값을 주입해서 미리 정의되어 있는 html을 렌더링 하는 걸로 이해함.
+# 참고로 iframe을 hydrate를 한다는 것은, 껍데기에 해당되는 iframe에 띄워지는 html에 구조화된 데이터를 주입해서 interactive한 UI로 변환하는 것을 의미함.
+
+
+
+
 
 # mcp server에 CallToolReqeust 처리하는 handler 등록
 mcp._mcp_server.request_handlers[types.CallToolRequest] = _call_tool_request
