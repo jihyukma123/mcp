@@ -56,6 +56,7 @@ async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerR
     ]))
 
 # 4. 도구 호출을 처리하는 함수 구현
+# - structuredContent 필드값이 UI 렌더링에 사용됨
 async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
     return types.ServerResult(types.CallToolResult(
         content = [
@@ -65,13 +66,6 @@ async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
             )
         ],
         structuredContent={},
-        _meta={
-            "openai/outputTemplate": "ui://widget/test-widget.html",
-            "openai/toolInvocation/invoking": "test-tool",
-            "openai/toolInvocation/invoked": "test-tool",
-            "openai/widgetAccessible": True,
-            "openai/resultCanProduceWidget": True,
-        },
     ))
 
 mcp._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
