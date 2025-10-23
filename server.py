@@ -40,7 +40,7 @@ async def _list_tools() -> List[types.Tool]:
             name="test-tool",
             title="test tool",
             description="test tool",
-            inputSchema=None,
+            inputSchema={},
             _meta={"openai/outputTemplate": "ui://widget/test-widget.html"},
         )
     ]
