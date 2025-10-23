@@ -16,28 +16,28 @@ HTML_TO_RENDER_TOOL_RESULT = """
 # 1. UI 역할을 하는 Resource 등록
 # - uri값이 이 리소스를 식별하는 ID값으로 사용됨. -> 유니크한 값으로 설정 필요 
 # - mimeType을 'text/html+skybridge'으로 설정해야함. 그리고 text 필드에 렌더링될 html을 명시.
-# @mcp._mcp_server.list_resources()
-# async def _list_resources() -> List[types.Resource]:
-#     return [
-#         types.Resource(
-#             name="test widget", 
-#             title="test widget", 
-#             uri="ui://widget/test-widget.html",
-#             description="test widget",
-#             text=HTML_TO_RENDER_TOOL_RESULT,
-#             mimeType='text/html+skybridge',
-#         )
-#     ]
+@mcp._mcp_server.list_resources()
+async def _list_resources() -> List[types.Resource]:
+    return [
+        types.Resource(
+            name="test widget", 
+            title="test widget", 
+            uri="ui://widget/test-widget.html",
+            description="test widget",
+            text=HTML_TO_RENDER_TOOL_RESULT,
+            mimeType='text/html+skybridge',
+        )
+    ]
 
-@mcp.resource(
-    uri="ui://widget/test-widget.html",
-    name="test widget",
-    title="test widget", 
-    description="test widget",
-    mime_type='text/html+skybridge',
-)
-def test_widget() -> str:
-    return HTML_TO_RENDER_TOOL_RESULT
+# @mcp.resource(
+#     uri="ui://widget/test-widget.html",
+#     name="test widget",
+#     title="test widget", 
+#     description="test widget",
+#     mime_type='text/html+skybridge',
+# )
+# def test_widget() -> str:
+#     return HTML_TO_RENDER_TOOL_RESULT
 
 # 2. Tool 등록
 # Tool과 UI역할을 하는 리소스를 연결하기 위해서 _meta필드의 openai/outputTemplate 필드에 UI 역할을 하는 리소스의 uri를 명시해야함.
