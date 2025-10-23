@@ -16,8 +16,21 @@ HTML_TO_RENDER_TOOL_RESULT = """
 # 1. UI 역할을 하는 Resource 등록
 # - uri값이 이 리소스를 식별하는 ID값으로 사용됨. -> 유니크한 값으로 설정 필요 
 # - mimeType을 'text/html+skybridge'으로 설정해야함. 그리고 text 필드에 렌더링될 html을 명시.
-@mcp._mcp_server.list_resources()
-async def _list_resources() -> List[types.Resource]:
+# @mcp._mcp_server.list_resources()
+# async def _list_resources() -> List[types.Resource]:
+#     return [
+#         types.Resource(
+#             name="test widget", 
+#             title="test widget", 
+#             uri="ui://widget/test-widget.html",
+#             description="test widget",
+#             text=HTML_TO_RENDER_TOOL_RESULT,
+#             mimeType='text/html+skybridge',
+#         )
+#     ]
+
+@mcp.resource("ui://widget/test-widget.html")
+def test_widget() -> str:
     return [
         types.Resource(
             name="test widget", 
@@ -26,7 +39,6 @@ async def _list_resources() -> List[types.Resource]:
             description="test widget",
             text=HTML_TO_RENDER_TOOL_RESULT,
             mimeType='text/html+skybridge',
-
         )
     ]
 
@@ -46,7 +58,7 @@ async def _list_tools() -> List[types.Tool]:
     ]
 
 
-# Run server with streamable_http transport
+# 서버 실행
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
 
