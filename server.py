@@ -55,8 +55,27 @@ async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerR
         )
     ]))
 
-mcp._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
+# 4. 도구 호출을 처리하는 함수 구현
+async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
+    return types.ServerResult(types.CallToolResult(
+        content = [
+            types.TextContent(
+                type="text",
+                text="test tool 호출 결과",
+            )
+        ],
+        structuredContent={},
+        _meta={
+            "openai/outputTemplate": "ui://widget/test-widget.html",
+            "openai/toolInvocation/invoking": "test-tool",
+            "openai/toolInvocation/invoked": "test-tool",
+            "openai/widgetAccessible": True,
+            "openai/resultCanProduceWidget": True,
+        },
+    ))
 
+mcp._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
+mcp._mcp_server.request_handlers[types.CallToolRequest] = _call_tool_request
 
 # 서버 실행
 if __name__ == "__main__":
