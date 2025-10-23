@@ -29,19 +29,9 @@ async def _list_resources() -> List[types.Resource]:
         )
     ]
 
-# @mcp.resource(
-#     uri="ui://widget/test-widget.html",
-#     name="test widget",
-#     title="test widget", 
-#     description="test widget",
-#     mime_type='text/html+skybridge',
-# )
-# def test_widget() -> str:
-#     return HTML_TO_RENDER_TOOL_RESULT
-
 # 2. Tool 등록
 # Tool과 UI역할을 하는 리소스를 연결하기 위해서 _meta필드의 openai/outputTemplate 필드에 UI 역할을 하는 리소스의 uri를 명시해야함.
-# 여기서는 위에서 test widget 등록 시 사용한 uri 값을 전달
+# 여기서 위에서 등록한 test widget의 uri 값을 전달
 @mcp._mcp_server.list_tools()
 async def _list_tools() -> List[types.Tool]:
     return [
@@ -53,6 +43,19 @@ async def _list_tools() -> List[types.Tool]:
             _meta={"openai/outputTemplate": "ui://widget/test-widget.html"},
         )
     ]
+
+# 3. 앱 등록 시 list_tool() 호출의 결과에 따라 tool 별로 연결된 resource를 read하는 요청(ReadResourcesList)를 처리하는 함수 구현
+async def _handle_read_resource(req: types.ReadResourceRequest) -> types.ServerResult:
+    # 예제코드는 tool이 하나라서 바로 연결된 resource를 반환(실제 구현 시 요청받은 resource_uri 값이 따라 다른 resource를 반환하도록 구현되어야 함)
+    return types.ServerResult(types.ReadResourceResult(contents=[
+        types.TextResourceContents(
+            uri="ui://widget/test-widget.html",
+            mimeType='text/html+skybridge',
+            text=HTML_TO_RENDER_TOOL_RESULT,
+        )
+    ]))
+
+mcp._mcp_server.request_handlers[types.ReadResourceRequest] = _handle_read_resource
 
 
 # 서버 실행
